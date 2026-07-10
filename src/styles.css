@@ -157,12 +157,6 @@ dd {
   margin: 0;
   font-weight: 800;
 }
-.import-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
 .history {
   display: grid;
   gap: 1rem;
