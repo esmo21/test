@@ -34,16 +34,17 @@ begin
       and con.contype = 'c'
   loop
     if (
-      constraint_definition like '%grade_4_completed%'
-      and constraint_definition like '%grade_5_completed%'
-      and constraint_definition like '%grade_6_completed%'
-      and constraint_definition like '%grade_7_completed%'
-      and constraint_definition like '%grade_8_completed%'
-      and constraint_definition like '%grade_9_completed%'
-      and constraint_definition like '%> 0%'
+      constraint_definition like '%> 0%'
+      and (
+        constraint_definition like '%grade_4_completed%'
+        or constraint_definition like '%grade_5_completed%'
+        or constraint_definition like '%grade_6_completed%'
+        or constraint_definition like '%grade_7_completed%'
+        or constraint_definition like '%grade_8_completed%'
+        or constraint_definition like '%grade_9_completed%'
+        or constraint_definition like '%score%'
+      )
     )
-      or constraint_definition like '%score > 0%'
-      or constraint_definition like '%score) > 0%'
     then
       execute format('alter table public.boulder_sessions drop constraint %I', constraint_name);
     end if;

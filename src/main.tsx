@@ -43,6 +43,7 @@ const countsToPayload = (counts: GradeCounts) =>
       [`grade_${g}_flashed`, counts[g].flashed],
     ]),
   );
+const countInputValue = (value: number) => (value === 0 ? "" : String(value));
 
 function AuthView() {
   const [mode, setMode] = useState<AuthMode>("login");
@@ -177,7 +178,8 @@ function App() {
     key: "completed" | "flashed",
     value: string,
   ) {
-    const parsedValue = Number(value);
+    const trimmedValue = value.trim();
+    const parsedValue = trimmedValue === "" ? 0 : Number(trimmedValue);
     const nextValue = Number.isFinite(parsedValue)
       ? Math.max(0, Math.floor(parsedValue))
       : 0;
@@ -333,7 +335,7 @@ function App() {
                     type="number"
                     min="0"
                     step="1"
-                    value={counts[g].completed}
+                    value={countInputValue(counts[g].completed)}
                     onChange={(e) =>
                       updateCount(g, "completed", e.target.value)
                     }
@@ -347,7 +349,7 @@ function App() {
                     min="0"
                     max={counts[g].completed}
                     step="1"
-                    value={counts[g].flashed}
+                    value={countInputValue(counts[g].flashed)}
                     onChange={(e) => updateCount(g, "flashed", e.target.value)}
                   />
                 </div>
