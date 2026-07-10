@@ -4,8 +4,10 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import {
   GRADES,
+  calculateBoulderStatistics,
   calculateGradeScore,
   calculateSessionScore,
+  calculateYearlyBoulderStatistics,
   createEmptyCounts,
   formatScore,
   validateCounts,
@@ -116,6 +118,41 @@ function AuthView() {
   );
 }
 
+type StatsPanelProps = {
+  title: string;
+  stats: ReturnType<typeof calculateBoulderStatistics>;
+  sessionsCount: number;
+};
+
+function StatsPanel({ title, stats, sessionsCount }: StatsPanelProps) {
+  return (
+    <section className="stat-box" aria-labelledby={`stats-${title}`}>
+      <h3 id={`stats-${title}`}>{title}</h3>
+      <dl>
+        <dt>Gesamtpunktzahl</dt>
+        <dd>{formatScore(stats.total)}</dd>
+        <dt>Trainingseinheiten</dt>
+        <dd>{sessionsCount}</dd>
+        <dt>Geschaffte Boulder</dt>
+        <dd>{stats.completed}</dd>
+        <dt>Geflashte Boulder</dt>
+        <dd>{stats.flashed}</dd>
+        <dt>Ø Punkte pro Training</dt>
+        <dd>{formatScore(stats.avg)}</dd>
+      </dl>
+      <h4>Geschafft nach Grad</h4>
+      <dl className="grade-stats">
+        {GRADES.map((grade) => (
+          <div key={grade}>
+            <dt>{grade}er</dt>
+            <dd>{stats.completedByGrade[grade]}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -155,23 +192,23 @@ function App() {
   }
   const score = useMemo(() => calculateSessionScore(counts), [counts]);
   const validation = useMemo(() => validateCounts(counts, false), [counts]);
-  const stats = useMemo(() => {
-    const completed = sessions.reduce(
-      (s, r) => s + GRADES.reduce((a, g) => a + r[`grade_${g}_completed`], 0),
-      0,
-    );
-    const flashed = sessions.reduce(
-      (s, r) => s + GRADES.reduce((a, g) => a + r[`grade_${g}_flashed`], 0),
-      0,
-    );
-    const total = sessions.reduce((s, r) => s + Number(r.score), 0);
-    return {
-      completed,
-      flashed,
-      total,
-      avg: sessions.length ? total / sessions.length : 0,
-    };
-  }, [sessions]);
+  const sessionSummaries = useMemo(
+    () =>
+      sessions.map((session) => ({
+        sessionDate: session.session_date,
+        score: Number(session.score),
+        counts: rowToCounts(session),
+      })),
+    [sessions],
+  );
+  const stats = useMemo(
+    () => calculateBoulderStatistics(sessionSummaries),
+    [sessionSummaries],
+  );
+  const yearlyStats = useMemo(
+    () => calculateYearlyBoulderStatistics(sessionSummaries),
+    [sessionSummaries],
+  );
   function updateCount(
     grade: BoulderGrade,
     key: "completed" | "flashed",
@@ -351,20 +388,21 @@ function App() {
               </button>
             )}
           </form>
-          <aside className="card">
+          <aside className="card stats-card">
             <h2>Statistik</h2>
-            <dl>
-              <dt>Gesamtpunktzahl</dt>
-              <dd>{formatScore(stats.total)}</dd>
-              <dt>Trainingseinheiten</dt>
-              <dd>{sessions.length}</dd>
-              <dt>Geschaffte Boulder</dt>
-              <dd>{stats.completed}</dd>
-              <dt>Geflashte Boulder</dt>
-              <dd>{stats.flashed}</dd>
-              <dt>Ø Punkte pro Training</dt>
-              <dd>{formatScore(stats.avg)}</dd>
-            </dl>
+            <StatsPanel title="Gesamt" stats={stats} sessionsCount={sessions.length} />
+            {yearlyStats.length > 0 && (
+              <div className="yearly-stats" aria-label="Statistik nach Jahren">
+                {yearlyStats.map((yearStats) => (
+                  <StatsPanel
+                    key={yearStats.year}
+                    title={yearStats.year}
+                    stats={yearStats}
+                    sessionsCount={yearStats.sessions}
+                  />
+                ))}
+              </div>
+            )}
           </aside>
         </section>
         <section className="card">
