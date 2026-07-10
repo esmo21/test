@@ -8,6 +8,25 @@ export interface ValidationResult {
   errors: string[];
 }
 
+export interface ScoredSessionSummary {
+  sessionDate: string;
+  score: number;
+  counts: GradeCounts;
+}
+
+export interface BoulderStatistics {
+  completed: number;
+  flashed: number;
+  completedByGrade: Record<BoulderGrade, number>;
+  total: number;
+  avg: number;
+}
+
+export interface YearlyBoulderStatistics extends BoulderStatistics {
+  year: string;
+  sessions: number;
+}
+
 export const basePointsForGrade = (grade: BoulderGrade): number => 0.5 * 2 ** (grade - 4);
 
 export const createEmptyCounts = (): GradeCounts => ({
@@ -18,6 +37,9 @@ export const createEmptyCounts = (): GradeCounts => ({
   8: { completed: 0, flashed: 0 },
   9: { completed: 0, flashed: 0 },
 });
+
+const createEmptyCompletedByGrade = (): Record<BoulderGrade, number> =>
+  Object.fromEntries(GRADES.map((grade) => [grade, 0])) as Record<BoulderGrade, number>;
 
 export function validateCounts(counts: GradeCounts, requireCompleted = false): ValidationResult {
   const errors: string[] = [];
@@ -58,6 +80,51 @@ export function calculateSessionScore(counts: GradeCounts): number {
     const { completed, flashed } = counts[grade];
     return sum + calculateGradeScore(grade, completed, flashed);
   }, 0);
+}
+
+export function calculateBoulderStatistics(sessions: readonly ScoredSessionSummary[]): BoulderStatistics {
+  const completedByGrade = createEmptyCompletedByGrade();
+  let completed = 0;
+  let flashed = 0;
+  let total = 0;
+
+  for (const session of sessions) {
+    total += Number(session.score);
+    for (const grade of GRADES) {
+      const gradeCompleted = session.counts[grade].completed;
+      completedByGrade[grade] += gradeCompleted;
+      completed += gradeCompleted;
+      flashed += session.counts[grade].flashed;
+    }
+  }
+
+  return {
+    completed,
+    flashed,
+    completedByGrade,
+    total,
+    avg: sessions.length ? total / sessions.length : 0,
+  };
+}
+
+export function calculateYearlyBoulderStatistics(
+  sessions: readonly ScoredSessionSummary[],
+): YearlyBoulderStatistics[] {
+  const sessionsByYear = new Map<string, ScoredSessionSummary[]>();
+
+  for (const session of sessions) {
+    const year = session.sessionDate.slice(0, 4);
+    if (!/^\d{4}$/.test(year)) continue;
+    sessionsByYear.set(year, [...(sessionsByYear.get(year) ?? []), session]);
+  }
+
+  return [...sessionsByYear.entries()]
+    .sort(([leftYear], [rightYear]) => Number(rightYear) - Number(leftYear))
+    .map(([year, yearSessions]) => ({
+      year,
+      sessions: yearSessions.length,
+      ...calculateBoulderStatistics(yearSessions),
+    }));
 }
 
 export function formatScore(score: number): string {
