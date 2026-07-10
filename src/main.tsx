@@ -1,6 +1,7 @@
 import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { User } from "@supabase/supabase-js";
+import { historicalSessions2025, historicalSessions2026, type HistoricalSession } from "./lib/historicalSessions";
 import { supabase } from "./lib/supabase";
 import {
   GRADES,
@@ -232,6 +233,50 @@ function App() {
     setCounts(rowToCounts(row));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
+  async function importHistoricalSessions(
+    year: number,
+    historicalSessions: HistoricalSession[],
+  ) {
+    if (!user) return;
+    if (
+      !confirm(
+        `${year}-Daten importieren? Vorhandene Einträge aus ${year} werden vorher ersetzt.`,
+      )
+    ) {
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    const deleteResult = await supabase
+      .from("boulder_sessions")
+      .delete()
+      .eq("user_id", user.id)
+      .gte("session_date", `${year}-01-01`)
+      .lte("session_date", `${year}-12-31`);
+
+    if (deleteResult.error) {
+      setError(deleteResult.error.message);
+      setLoading(false);
+      return;
+    }
+
+    const importPayload = historicalSessions.map(({ date, score, counts }) => ({
+      user_id: user.id,
+      session_date: date,
+      score,
+      ...countsToPayload(counts),
+    }));
+    const insertResult = await supabase
+      .from("boulder_sessions")
+      .insert(importPayload);
+
+    if (insertResult.error) setError(insertResult.error.message);
+    else await loadSessions();
+    setLoading(false);
+  }
+
   async function remove(row: SessionRow) {
     if (!confirm(`Training vom ${row.session_date} wirklich löschen?`)) return;
     setLoading(true);
@@ -351,6 +396,22 @@ function App() {
           </form>
           <aside className="card">
             <h2>Statistik</h2>
+            <div className="import-actions">
+              <button
+                type="button"
+                onClick={() => void importHistoricalSessions(2025, historicalSessions2025)}
+                disabled={loading}
+              >
+                2025-Daten importieren
+              </button>
+              <button
+                type="button"
+                onClick={() => void importHistoricalSessions(2026, historicalSessions2026)}
+                disabled={loading}
+              >
+                2026-Daten importieren
+              </button>
+            </div>
             <dl>
               <dt>Gesamtpunktzahl</dt>
               <dd>{formatScore(stats.total)}</dd>

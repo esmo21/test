@@ -16,9 +16,26 @@ create table if not exists public.boulder_sessions (
   grade_9_flashed integer not null default 0 check (grade_9_flashed >= 0 and grade_9_flashed <= grade_9_completed),
   score numeric(10,3) not null default 0 check (score >= 0),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  check (grade_4_completed + grade_5_completed + grade_6_completed + grade_7_completed + grade_8_completed + grade_9_completed > 0)
-);
+  updated_at timestamptz not null default now()
+ );
+
+do $$
+declare
+  constraint_name text;
+begin
+  for constraint_name in
+    select con.conname
+    from pg_constraint con
+    join pg_class rel on rel.oid = con.conrelid
+    join pg_namespace nsp on nsp.oid = rel.relnamespace
+    where nsp.nspname = 'public'
+      and rel.relname = 'boulder_sessions'
+      and con.contype = 'c'
+      and pg_get_constraintdef(con.oid) like '%grade_4_completed + grade_5_completed + grade_6_completed + grade_7_completed + grade_8_completed + grade_9_completed > 0%'
+  loop
+    execute format('alter table public.boulder_sessions drop constraint %I', constraint_name);
+  end loop;
+end $$;
 
 alter table public.boulder_sessions enable row level security;
 
