@@ -154,7 +154,7 @@ function App() {
     setLoading(false);
   }
   const score = useMemo(() => calculateSessionScore(counts), [counts]);
-  const validation = useMemo(() => validateCounts(counts), [counts]);
+  const validation = useMemo(() => validateCounts(counts, false), [counts]);
   const stats = useMemo(() => {
     const completed = sessions.reduce(
       (s, r) => s + GRADES.reduce((a, g) => a + r[`grade_${g}_completed`], 0),
