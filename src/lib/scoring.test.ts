@@ -12,6 +12,12 @@ describe('Boulder scoring', () => {
   it('mehrere Schwierigkeitsgrade werden korrekt summiert', () => { const c = createEmptyCounts(); c[4].completed=2; c[5]={completed:2,flashed:1}; c[7].completed=1; expect(calculateSessionScore(c)).toBe(7.25); });
   it('geflashte Boulder werden nicht doppelt gezählt', () => { const c = createEmptyCounts(); c[7]={completed:3,flashed:2}; expect(calculateSessionScore(c)).toBe(14); });
   it('ungültige Eingaben werden erkannt', () => { const c = createEmptyCounts(); c[5]={completed:1,flashed:2}; expect(validateCounts(c).valid).toBe(false); c[5]={completed:-1,flashed:0}; expect(validateCounts(c).valid).toBe(false); c[5]={completed:1.5,flashed:0}; expect(validateCounts(c).valid).toBe(false); });
+
+  it('erlaubt Trainingseinheiten ohne geschaffte Boulder', () => {
+    const c = createEmptyCounts();
+    expect(validateCounts(c).valid).toBe(true);
+    expect(calculateSessionScore(c)).toBe(0);
+  });
 });
 
 describe('Historische Importdaten', () => {

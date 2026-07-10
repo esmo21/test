@@ -19,7 +19,7 @@ export const createEmptyCounts = (): GradeCounts => ({
   9: { completed: 0, flashed: 0 },
 });
 
-export function validateCounts(counts: GradeCounts, requireCompleted = true): ValidationResult {
+export function validateCounts(counts: GradeCounts, requireCompleted = false): ValidationResult {
   const errors: string[] = [];
   let totalCompleted = 0;
 

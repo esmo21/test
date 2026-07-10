@@ -22,18 +22,31 @@ create table if not exists public.boulder_sessions (
 do $$
 declare
   constraint_name text;
+  constraint_definition text;
 begin
-  for constraint_name in
-    select con.conname
+  for constraint_name, constraint_definition in
+    select con.conname, pg_get_constraintdef(con.oid)
     from pg_constraint con
     join pg_class rel on rel.oid = con.conrelid
     join pg_namespace nsp on nsp.oid = rel.relnamespace
     where nsp.nspname = 'public'
       and rel.relname = 'boulder_sessions'
       and con.contype = 'c'
-      and pg_get_constraintdef(con.oid) like '%grade_4_completed + grade_5_completed + grade_6_completed + grade_7_completed + grade_8_completed + grade_9_completed > 0%'
   loop
-    execute format('alter table public.boulder_sessions drop constraint %I', constraint_name);
+    if (
+      constraint_definition like '%grade_4_completed%'
+      and constraint_definition like '%grade_5_completed%'
+      and constraint_definition like '%grade_6_completed%'
+      and constraint_definition like '%grade_7_completed%'
+      and constraint_definition like '%grade_8_completed%'
+      and constraint_definition like '%grade_9_completed%'
+      and constraint_definition like '%> 0%'
+    )
+      or constraint_definition like '%score > 0%'
+      or constraint_definition like '%score) > 0%'
+    then
+      execute format('alter table public.boulder_sessions drop constraint %I', constraint_name);
+    end if;
   end loop;
 end $$;
 
