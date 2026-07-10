@@ -304,11 +304,7 @@ function App() {
                     step="1"
                     value={counts[g].flashed}
                     onChange={(e) => updateCount(g, "flashed", e.target.value)}
-                    aria-describedby={`f-${g}-hint`}
                   />
-                  <small id={`f-${g}-hint`}>
-                    Maximal {counts[g].completed}
-                  </small>
                 </div>
                 <output>
                   {formatScore(
