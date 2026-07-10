@@ -117,10 +117,6 @@ legend {
   display: grid;
   gap: 0.45rem;
 }
-.count-field small {
-  color: #4d5b4f;
-  font-size: 0.85rem;
-}
 output {
   font-weight: 800;
   color: #236141;
