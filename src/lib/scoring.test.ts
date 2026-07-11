@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { historicalSessions2025, historicalSessions2026 } from './historicalSessions';
-import { calculateBoulderStatistics, calculateSessionScore, calculateYearlyBoulderStatistics, createEmptyCounts, validateCounts } from './scoring';
+import { calculateBoulderStatistics, calculateSessionScore, calculateYearlyBoulderStatistics, calculateYearToDateComparison, createEmptyCounts, validateCounts } from './scoring';
 
 describe('Boulder scoring', () => {
   it('keine Boulder ergibt 0 Punkte', () => expect(calculateSessionScore(createEmptyCounts())).toBe(0));
@@ -69,6 +69,38 @@ describe('Boulder statistics', () => {
       completedByGrade: { 4: 1, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 },
     });
   });
+  it('berechnet einen Year-to-Date-Vergleich zum gleichen Vorjahrestag', () => {
+    const previousIncluded = createEmptyCounts();
+    previousIncluded[4].completed = 4;
+    const previousExcluded = createEmptyCounts();
+    previousExcluded[9].completed = 10;
+    const currentIncluded = createEmptyCounts();
+    currentIncluded[5].completed = 6;
+    const currentExcluded = createEmptyCounts();
+    currentExcluded[9].completed = 10;
+
+    const comparison = calculateYearToDateComparison(
+      [
+        { sessionDate: '2025-07-11', score: calculateSessionScore(previousIncluded), counts: previousIncluded },
+        { sessionDate: '2025-07-12', score: calculateSessionScore(previousExcluded), counts: previousExcluded },
+        { sessionDate: '2026-07-11', score: calculateSessionScore(currentIncluded), counts: currentIncluded },
+        { sessionDate: '2026-07-12', score: calculateSessionScore(currentExcluded), counts: currentExcluded },
+      ],
+      '2026-07-11',
+    );
+
+    expect(comparison).toMatchObject({
+      currentYear: '2026',
+      previousYear: '2025',
+      comparisonDate: '2025-07-11',
+      currentSessions: 1,
+      previousSessions: 1,
+    });
+    expect(comparison?.previous.total).toBe(2);
+    expect(comparison?.current.total).toBe(6);
+    expect(comparison?.improvementPercent).toBe(200);
+  });
+
 });
 
 

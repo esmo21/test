@@ -8,6 +8,7 @@ import {
   calculateGradeScore,
   calculateSessionScore,
   calculateYearlyBoulderStatistics,
+  calculateYearToDateComparison,
   createEmptyCounts,
   formatScore,
   validateCounts,
@@ -45,6 +46,18 @@ const countsToPayload = (counts: GradeCounts) =>
     ]),
   );
 const countInputValue = (value: number) => (value === 0 ? "" : String(value));
+const formatDate = (value: string) =>
+  new Date(`${value}T00:00:00.000Z`).toLocaleDateString("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+const formatPercent = (value: number) =>
+  new Intl.NumberFormat("de-DE", {
+    maximumFractionDigits: 1,
+    signDisplay: "exceptZero",
+  }).format(value);
 
 function AuthView() {
   const [mode, setMode] = useState<AuthMode>("login");
@@ -153,6 +166,36 @@ function StatsPanel({ title, stats, sessionsCount }: StatsPanelProps) {
   );
 }
 
+type YearToDateComparisonPanelProps = {
+  comparison: NonNullable<ReturnType<typeof calculateYearToDateComparison>>;
+};
+
+function YearToDateComparisonPanel({ comparison }: YearToDateComparisonPanelProps) {
+  const trendText =
+    comparison.improvementPercent === null
+      ? "Kein Vorjahresvergleich."
+      : `${formatPercent(comparison.improvementPercent)}% ${
+          comparison.improvementPercent >= 0 ? "besser" : "schlechter"
+        }`;
+
+  return (
+    <section className="stat-box ytd-comparison" aria-labelledby="stats-ytd">
+      <h3 id="stats-ytd">YTD-Vergleich</h3>
+      <p>
+        {formatDate(comparison.comparisonDate)}: {formatScore(comparison.previous.total)} P · {
+          comparison.previousSessions
+        } Trainings · Ø {formatScore(comparison.previous.avg)} P/Training.
+      </p>
+      <p>
+        Dieses Jahr: {formatScore(comparison.current.total)} P · {comparison.currentSessions} Trainings · Ø {formatScore(
+          comparison.current.avg,
+        )} P/Training.
+      </p>
+      <strong>{trendText}</strong>
+    </section>
+  );
+}
+
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -207,6 +250,10 @@ function App() {
   );
   const yearlyStats = useMemo(
     () => calculateYearlyBoulderStatistics(sessionSummaries),
+    [sessionSummaries],
+  );
+  const yearToDateComparison = useMemo(
+    () => calculateYearToDateComparison(sessionSummaries),
     [sessionSummaries],
   );
   function updateCount(
@@ -391,6 +438,9 @@ function App() {
           <aside className="card stats-card">
             <h2>Statistik</h2>
             <StatsPanel title="Gesamt" stats={stats} sessionsCount={sessions.length} />
+            {yearToDateComparison && (
+              <YearToDateComparisonPanel comparison={yearToDateComparison} />
+            )}
             {yearlyStats.length > 0 && (
               <div className="yearly-stats" aria-label="Statistik nach Jahren">
                 {yearlyStats.map((yearStats) => (

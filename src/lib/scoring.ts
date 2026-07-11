@@ -27,6 +27,17 @@ export interface YearlyBoulderStatistics extends BoulderStatistics {
   sessions: number;
 }
 
+export interface YearToDateComparison {
+  currentYear: string;
+  previousYear: string;
+  comparisonDate: string;
+  current: BoulderStatistics;
+  currentSessions: number;
+  previous: BoulderStatistics;
+  previousSessions: number;
+  improvementPercent: number | null;
+}
+
 export const basePointsForGrade = (grade: BoulderGrade): number => 0.5 * 2 ** (grade - 4);
 
 export const createEmptyCounts = (): GradeCounts => ({
@@ -125,6 +136,66 @@ export function calculateYearlyBoulderStatistics(
       sessions: yearSessions.length,
       ...calculateBoulderStatistics(yearSessions),
     }));
+}
+
+const isValidDateOnly = (date: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(date);
+
+const toDateOnly = (date: Date): string => date.toISOString().slice(0, 10);
+
+const compareDateOnly = (left: string, right: string): number => left.localeCompare(right);
+
+function previousYearDate(date: string): string {
+  const year = Number(date.slice(0, 4));
+  const monthDay = date.slice(5);
+  const candidate = `${year - 1}-${monthDay}`;
+
+  if (isValidDateOnly(candidate) && !Number.isNaN(new Date(`${candidate}T00:00:00.000Z`).getTime())) {
+    const parsedCandidate = new Date(`${candidate}T00:00:00.000Z`);
+    if (toDateOnly(parsedCandidate) === candidate) return candidate;
+  }
+
+  return `${year - 1}-02-28`;
+}
+
+export function calculateYearToDateComparison(
+  sessions: readonly ScoredSessionSummary[],
+  currentDate = toDateOnly(new Date()),
+): YearToDateComparison | null {
+  if (!isValidDateOnly(currentDate)) {
+    throw new Error('currentDate must use YYYY-MM-DD format.');
+  }
+
+  const currentYear = currentDate.slice(0, 4);
+  const previousComparisonDate = previousYearDate(currentDate);
+  const previousYear = previousComparisonDate.slice(0, 4);
+  const currentYearStart = `${currentYear}-01-01`;
+  const previousYearStart = `${previousYear}-01-01`;
+  const currentSessions = sessions.filter(
+    (session) =>
+      compareDateOnly(session.sessionDate, currentYearStart) >= 0 &&
+      compareDateOnly(session.sessionDate, currentDate) <= 0,
+  );
+  const previousSessions = sessions.filter(
+    (session) =>
+      compareDateOnly(session.sessionDate, previousYearStart) >= 0 &&
+      compareDateOnly(session.sessionDate, previousComparisonDate) <= 0,
+  );
+
+  if (currentSessions.length === 0 && previousSessions.length === 0) return null;
+
+  const current = calculateBoulderStatistics(currentSessions);
+  const previous = calculateBoulderStatistics(previousSessions);
+
+  return {
+    currentYear,
+    previousYear,
+    comparisonDate: previousComparisonDate,
+    current,
+    currentSessions: currentSessions.length,
+    previous,
+    previousSessions: previousSessions.length,
+    improvementPercent: previous.total === 0 ? null : ((current.total - previous.total) / previous.total) * 100,
+  };
 }
 
 export function formatScore(score: number): string {
