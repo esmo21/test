@@ -201,3 +201,44 @@ export function calculateYearToDateComparison(
 export function formatScore(score: number): string {
   return new Intl.NumberFormat('de-DE', { maximumFractionDigits: 3 }).format(score);
 }
+
+export interface YearlyScoreSeries {
+  year: string;
+  points: { date: string; day: number; total: number }[];
+}
+
+// Use a shared leap year so the same month/day aligns across all years.
+export function calendarDayIndex(monthDay: string): number {
+  return (Date.parse(`2000-${monthDay}T00:00:00Z`) - Date.UTC(2000, 0, 1)) / 86_400_000;
+}
+
+export function calculateYearlyScoreSeries(
+  sessions: readonly Pick<ScoredSessionSummary, 'sessionDate' | 'score'>[],
+  currentDate = toDateOnly(new Date()),
+): YearlyScoreSeries[] {
+  const byYear = new Map<string, Map<string, number>>();
+  for (const { sessionDate, score } of sessions) {
+    const parsed = new Date(`${sessionDate}T00:00:00Z`);
+    if (!isValidDateOnly(sessionDate) || Number.isNaN(parsed.getTime()) ||
+        toDateOnly(parsed) !== sessionDate || sessionDate > currentDate || !Number.isFinite(score)) continue;
+    const year = sessionDate.slice(0, 4);
+    const daily = byYear.get(year) ?? new Map<string, number>();
+    daily.set(sessionDate, (daily.get(sessionDate) ?? 0) + score);
+    byYear.set(year, daily);
+  }
+  return [...byYear.entries()]
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([year, daily]) => {
+      const end = year === currentDate.slice(0, 4) ? currentDate : `${year}-12-31`;
+      const cursor = new Date(`${year}-01-01T00:00:00Z`);
+      const points: YearlyScoreSeries['points'] = [];
+      let total = 0;
+      while (toDateOnly(cursor) <= end) {
+        const date = toDateOnly(cursor);
+        total += daily.get(date) ?? 0;
+        points.push({ date, day: calendarDayIndex(date.slice(5)), total });
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+      }
+      return { year, points };
+    });
+}

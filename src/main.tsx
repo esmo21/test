@@ -16,6 +16,7 @@ import {
   type GradeCounts,
 } from "./lib/scoring";
 import "./styles.css";
+import { YearComparisonChart } from "./components/YearComparisonChart";
 
 type SessionRow = {
   id: string;
@@ -437,6 +438,7 @@ function App() {
           </form>
           <aside className="card stats-card">
             <h2>Statistik</h2>
+            <YearComparisonChart sessions={sessionSummaries} />
             <StatsPanel title="Gesamt" stats={stats} sessionsCount={sessions.length} />
             {yearToDateComparison && (
               <YearToDateComparisonPanel comparison={yearToDateComparison} />
